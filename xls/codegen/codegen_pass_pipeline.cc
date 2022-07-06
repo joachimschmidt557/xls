@@ -23,6 +23,7 @@
 #include "xls/codegen/mulp_combining_pass.h"
 #include "xls/codegen/port_legalization_pass.h"
 #include "xls/codegen/register_legalization_pass.h"
+#include "xls/codegen/invocation_to_instantiation_pass.h"
 #include "xls/codegen/signature_generation_pass.h"
 #include "xls/passes/dce_pass.h"
 
@@ -53,6 +54,9 @@ std::unique_ptr<CodegenCompoundPass> CreateCodegenPassPipeline() {
   // Eliminate no-longer-needed partial product operations by turning them into
   // normal multiplies.
   top->Add<MulpCombiningPass>();
+
+  // Lower function invocations to module instantiations.
+  top->Add<InvocationToInstantiationPass>();
 
   // Final dead-code elimination pass to remove cruft left from earlier passes.
   top->Add<CodegenWrapperPass>(std::make_unique<DeadCodeEliminationPass>());

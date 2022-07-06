@@ -28,6 +28,7 @@
 #include "xls/codegen/codegen_pass_pipeline.h"
 #include "xls/codegen/flattening.h"
 #include "xls/codegen/module_builder.h"
+#include "xls/codegen/module_signature.h"
 #include "xls/codegen/node_expressions.h"
 #include "xls/codegen/signature_generator.h"
 #include "xls/codegen/vast.h"
@@ -46,36 +47,84 @@
 
 namespace xls {
 namespace verilog {
+namespace {
+
+// Returns the functions invoked by the given function via Invoke instructions.
+std::vector<FunctionBase*> InvokedFunctions(FunctionBase* f) {
+  absl::flat_hash_set<FunctionBase*> invoked_set;
+  std::vector<FunctionBase*> invoked;
+  for (Node* node : f->nodes()) {
+    if (node->Is<Invoke>()) {
+      FunctionBase* to_apply = node->As<Invoke>()->to_apply();
+      auto [_, inserted] = invoked_set.insert(to_apply);
+      if (inserted) {
+        invoked.push_back(to_apply);
+      }
+    }
+  }
+  return invoked;
+}
+
+// Recursive DFS visitor of the call graph induced by invoke
+// instructions. Builds a post order of functions in the post_order vector.
+void DfsVisit(FunctionBase* f, absl::flat_hash_set<FunctionBase*>* visited,
+              std::vector<FunctionBase*>* post_order) {
+  visited->insert(f);
+  for (FunctionBase* invoked : InvokedFunctions(f)) {
+    if (!visited->contains(invoked)) {
+      DfsVisit(invoked, visited, post_order);
+    }
+  }
+  post_order->push_back(f);
+}
+
+// Returns the functions and procs in package 'p' in a DFS post order traversal
+// of the call graph induced by invoke nodes.
+std::vector<FunctionBase*> FunctionsInPostOrder(Package* p, FunctionBase* root) {
+  absl::flat_hash_set<FunctionBase*> visited;
+  std::vector<FunctionBase*> post_order;
+  DfsVisit(root, &visited, &post_order);
+  return post_order;
+}
+
+} // namespace
+
 
 absl::StatusOr<ModuleGeneratorResult> GenerateCombinationalModule(
     FunctionBase* module, const CodegenOptions& options) {
-  Block* block = nullptr;
+  VerilogLineMap verilog_line_map;
+  std::string verilog;
+  ModuleSignature signature;
 
-  XLS_RET_CHECK(module->IsProc() || module->IsFunction());
-  if (module->IsFunction()) {
-    XLS_ASSIGN_OR_RETURN(block, FunctionToCombinationalBlock(
-                                    dynamic_cast<Function*>(module), options));
-  } else {
-    XLS_ASSIGN_OR_RETURN(
-        block, ProcToCombinationalBlock(dynamic_cast<Proc*>(module), options));
+  for (FunctionBase* f : FunctionsInPostOrder(module->package(), module)) {
+    Block* block = nullptr;
+
+    XLS_RET_CHECK(f->IsProc() || f->IsFunction());
+    if (f->IsFunction()) {
+      XLS_ASSIGN_OR_RETURN(block, FunctionToCombinationalBlock(
+                                                               dynamic_cast<Function*>(f), options));
+    } else {
+      XLS_ASSIGN_OR_RETURN(
+                           block, ProcToCombinationalBlock(dynamic_cast<Proc*>(f), options));
+    }
+
+    CodegenPassUnit unit(f->package(), block);
+
+    CodegenPassOptions codegen_pass_options;
+    codegen_pass_options.codegen_options = options;
+
+    PassResults results;
+    XLS_RETURN_IF_ERROR(CreateCodegenPassPipeline()
+                        ->Run(&unit, codegen_pass_options, &results)
+                        .status());
+    XLS_RET_CHECK(unit.signature.has_value());
+    XLS_ASSIGN_OR_RETURN(verilog,
+                         GenerateVerilog(block, options, &verilog_line_map));
+    signature = unit.signature.value();
   }
 
-  CodegenPassUnit unit(module->package(), block);
-
-  CodegenPassOptions codegen_pass_options;
-  codegen_pass_options.codegen_options = options;
-
-  PassResults results;
-  XLS_RETURN_IF_ERROR(CreateCodegenPassPipeline()
-                          ->Run(&unit, codegen_pass_options, &results)
-                          .status());
-  XLS_RET_CHECK(unit.signature.has_value());
-  VerilogLineMap verilog_line_map;
-  XLS_ASSIGN_OR_RETURN(std::string verilog,
-                       GenerateVerilog(block, options, &verilog_line_map));
-
   return ModuleGeneratorResult{verilog, verilog_line_map,
-                               unit.signature.value()};
+                               signature};
 }
 
 }  // namespace verilog

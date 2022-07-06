@@ -474,6 +474,7 @@ cc_library(
     hdrs = ["codegen_pass_pipeline.h"],
     deps = [
         ":block_metrics_generation_pass",
+        ":invocation_to_instantiation_pass",
         ":codegen_checker",
         ":codegen_pass",
         ":codegen_wrapper_pass",
@@ -832,6 +833,21 @@ cc_library(
     deps = [
         ":block_metrics",
         ":codegen_pass",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "//xls/common/status:status_macros",
+        "//xls/ir",
+        "//xls/ir:node_util",
+    ],
+)
+
+cc_library(
+    name = "invocation_to_instantiation_pass",
+    srcs = ["invocation_to_instantiation_pass.cc"],
+    hdrs = ["invocation_to_instantiation_pass.h"],
+    deps = [
+        ":codegen_pass",
+        ":vast",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:str_format",
         "//xls/common/status:status_macros",
