@@ -37,6 +37,7 @@ enum PragmaType {
   Pragma_Label,
   Pragma_ArrayAllowDefaultPad,
   Pragma_SyntheticInt,
+  Pragma_SpfePrivate,
 };
 
 class Pragma {
@@ -135,6 +136,8 @@ class CCParser {
   std::string LocString(const xls::SourceInfo& loc);
 
   clang::SourceManager* sm_ = nullptr;
+
+  std::vector<const clang::FunctionDecl*> private_functions_;
 
  private:
   bool LibToolVisitFunction(clang::FunctionDecl* func);

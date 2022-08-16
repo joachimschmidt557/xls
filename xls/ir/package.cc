@@ -534,6 +534,9 @@ std::string Package::DumpIr() const {
     if (top.has_value() && top.value() == function.get()) {
       prefix = "top ";
     }
+    if (function->spfe_private) {
+      prefix += "spfe_private ";
+    }
     function_dumps.push_back(absl::StrCat(prefix, function->DumpIr()));
   }
   for (auto& proc : procs()) {
@@ -547,6 +550,9 @@ std::string Package::DumpIr() const {
     std::string prefix = "";
     if (top.has_value() && top.value() == block.get()) {
       prefix = "top ";
+    }
+    if (block->spfe_private) {
+      prefix += "spfe_private ";
     }
     function_dumps.push_back(absl::StrCat(prefix, block->DumpIr()));
   }

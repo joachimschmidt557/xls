@@ -157,6 +157,8 @@ class Block : public FunctionBase {
 
   std::string DumpIr() const override;
 
+  bool spfe_private = false;
+
  private:
   static std::string PortName(const Port& port);
 

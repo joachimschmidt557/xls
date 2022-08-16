@@ -1530,6 +1530,8 @@ class Module : public VastNode {
     return member;
   }
 
+  void AddAttribute(std::string name);
+
   ModuleSection* top() { return &top_; }
 
   absl::Span<const Port> ports() const { return ports_; }
@@ -1545,6 +1547,8 @@ class Module : public VastNode {
 
   std::string name_;
   std::vector<Port> ports_;
+
+  std::vector<std::string> attributes_;
 
   ModuleSection top_;
 };

@@ -103,6 +103,7 @@ absl::StatusOr<ModuleGeneratorResult> GenerateCombinationalModule(
     if (f->IsFunction()) {
       XLS_ASSIGN_OR_RETURN(block, FunctionToCombinationalBlock(
                                                                dynamic_cast<Function*>(f), options));
+      block->spfe_private = dynamic_cast<Function*>(f)->spfe_private;
     } else {
       XLS_ASSIGN_OR_RETURN(
                            block, ProcToCombinationalBlock(dynamic_cast<Proc*>(f), options));

@@ -276,6 +276,9 @@ absl::Status CCParser::ScanFileForPragmas(absl::string_view filename) {
       } else if ((at = match_pragma(line, "#pragma hls_synthetic_int")) !=
                  std::string::npos) {
         hls_pragmas_[location] = Pragma(Pragma_SyntheticInt);
+      } else if ((at = match_pragma(line, "#pragma spfe_private")) !=
+                     std::string::npos) {
+        hls_pragmas_[location] = Pragma(Pragma_SpfePrivate);
       } else if ((at = match_pragma(line, init_interval_pragma)) !=
                  std::string::npos) {
         const std::string after_pragma = line.substr(
@@ -370,6 +373,10 @@ absl::Status CCParser::VisitFunction(const clang::FunctionDecl* funcdecl) {
             LocString(GetLoc(*top_function_)), LocString(GetLoc(*funcdecl))));
       }
     }
+  }
+
+  if (pragma.type() == Pragma_SpfePrivate) {
+    private_functions_.push_back(funcdecl);
   }
 
   return absl::OkStatus();

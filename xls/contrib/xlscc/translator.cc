@@ -1373,6 +1373,11 @@ absl::StatusOr<GeneratedFunction*> Translator::GenerateIR_Function(
   XLS_ASSIGN_OR_RETURN(sf.xls_func,
                        builder.BuildWithReturnValue(context().return_val));
 
+  auto private_functions = parser_->private_functions_;
+  if (std::find(private_functions.begin(), private_functions.end(), funcdecl) != private_functions.end()) {
+    sf.xls_func->spfe_private = true;
+  }
+
   return &sf;
 }
 

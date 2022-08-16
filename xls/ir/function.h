@@ -84,6 +84,8 @@ class Function : public FunctionBase {
     return node == return_value();
   }
 
+  bool spfe_private = false;
+
  private:
   Node* return_value_ = nullptr;
 };

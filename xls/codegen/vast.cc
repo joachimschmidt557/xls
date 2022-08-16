@@ -384,6 +384,10 @@ ParameterRef* Module::AddParameter(absl::string_view name, Expression* rhs,
   return file()->Make<ParameterRef>(loc, param);
 }
 
+void Module::AddAttribute(std::string name) {
+  attributes_.push_back(name);
+}
+
 Literal* Expression::AsLiteralOrDie() {
   XLS_CHECK(IsLiteral());
   return static_cast<Literal*>(this);
@@ -678,7 +682,13 @@ std::string SystemFunctionCall::Emit(LineInfo* line_info) const {
 
 std::string Module::Emit(LineInfo* line_info) const {
   LineInfoStart(line_info, this);
-  std::string result = absl::StrCat("module ", name_);
+  std::string result = "";
+  if (!attributes_.empty()) {
+    auto joined = absl::StrJoin(attributes_, ", ");
+    absl::StrAppend(&result, "(* ", joined, " *)\n");
+    LineInfoIncrease(line_info, 1);
+  }
+  absl::StrAppend(&result, "module ", name_);
   if (ports_.empty()) {
     absl::StrAppend(&result, ";\n");
     LineInfoIncrease(line_info, 1);

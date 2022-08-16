@@ -310,6 +310,7 @@ absl::StatusOr<std::unique_ptr<PackageT>> Parser::ParseDerivedPackageNoVerify(
   while (!parser.AtEof()) {
     XLS_ASSIGN_OR_RETURN(Token peek, parser.scanner_.PeekToken());
     bool is_top = false;
+    bool is_spfe_private = false;
     // The fn, proc or block is a top entity.
     if (peek.type() == LexicalTokenType::kKeyword && peek.value() == "top") {
       is_top = true;
@@ -322,11 +323,19 @@ absl::StatusOr<std::unique_ptr<PackageT>> Parser::ParseDerivedPackageNoVerify(
       }
       previous_top_token = peek;
     }
+    if (peek.type() == LexicalTokenType::kKeyword && peek.value() == "spfe_private") {
+      is_spfe_private = true;
+      XLS_RETURN_IF_ERROR(parser.scanner_.DropKeywordOrError("spfe_private"));
+      XLS_ASSIGN_OR_RETURN(peek, parser.scanner_.PeekToken());
+    }
     if (peek.type() == LexicalTokenType::kKeyword && peek.value() == "fn") {
       XLS_ASSIGN_OR_RETURN(Function * fn, parser.ParseFunction(package.get()),
                            _ << "@ " << filename_str);
       if (is_top) {
         XLS_RETURN_IF_ERROR(package->SetTop(fn));
+      }
+      if (is_spfe_private) {
+        fn->spfe_private = true;
       }
       continue;
     }
@@ -344,9 +353,17 @@ absl::StatusOr<std::unique_ptr<PackageT>> Parser::ParseDerivedPackageNoVerify(
       if (is_top) {
         XLS_RETURN_IF_ERROR(package->SetTop(block));
       }
+      if (is_spfe_private) {
+        block->spfe_private = true;
+      }
       continue;
     }
     if (is_top) {
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Expected fn, proc or block definition, got %s @ %s",
+                          peek.value(), peek.pos().ToHumanString()));
+    }
+    if (is_spfe_private) {
       return absl::InvalidArgumentError(
           absl::StrFormat("Expected fn, proc or block definition, got %s @ %s",
                           peek.value(), peek.pos().ToHumanString()));

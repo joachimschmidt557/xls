@@ -296,6 +296,10 @@ class BlockGenerator {
 
   // Generates and returns the Verilog text for the underlying block.
   absl::Status Emit() {
+    if (block_->spfe_private) {
+      mb_.module()->AddAttribute("private");
+    }
+
     XLS_RETURN_IF_ERROR(EmitInputPorts());
     // TODO(meheff): 2021/11/04 Emit instantiations in pipeline stages if
     // possible.
