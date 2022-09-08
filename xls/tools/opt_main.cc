@@ -64,6 +64,8 @@ ABSL_FLAG(int64_t, opt_level, xls::kMaxOptLevel,
                           xls::kMaxOptLevel));
 ABSL_FLAG(bool, inline_procs, false,
           "Whether to inline all procs by calling the proc inlining pass. ");
+ABSL_FLAG(std::string, out, "",
+          "Path at which to output IR. Stdout if not specified.");
 // LINT.ThenChange(//xls/build_rules/xls_ir_rules.bzl)
 
 namespace xls::tools {
@@ -96,7 +98,25 @@ absl::Status RealMain(absl::string_view input_path) {
   };
   XLS_ASSIGN_OR_RETURN(std::string opt_ir,
                        tools::OptimizeIrForTop(ir, options));
-  std::cout << opt_ir;
+
+  std::filesystem::path output_file(absl::GetFlag(FLAGS_out));
+
+  std::filesystem::path output_absolute = output_file;
+  if (output_file.is_relative()) {
+    XLS_ASSIGN_OR_RETURN(std::filesystem::path cwd, xls::GetCurrentDirectory());
+    output_absolute = cwd / output_file;
+  }
+
+  auto write_to_output = [&](absl::string_view output) -> absl::Status {
+    if (output_file.empty()) {
+      std::cout << output;
+    } else {
+      XLS_RETURN_IF_ERROR(xls::SetFileContents(output_file, output));
+    }
+    return absl::OkStatus();
+  };
+
+  XLS_RETURN_IF_ERROR(write_to_output(opt_ir));
   return absl::OkStatus();
 }
 
